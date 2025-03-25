@@ -17,3 +17,20 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t mobile-api .
+
+      - name: Save Docker image as tar
+        run: docker save mobile-api -o mobile-api.tar
+
+      - name: Copy image to Droplet
+        run: |
+          echo "${{ secrets.SSH_KEY }}" > key.pem
+          chmod 600 key.pem
+          scp -o StrictHostKeyChecking=no -i key.pem mobile-api.tar root@144.126.249.162:/root/
+
+      - name: Load & run on Droplet
+        run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem root@144.126.249.162 << 'EOF'
+            docker load -i mobile-api.tar
+            docker stop mobile-api || true && docker rm mobile-api || true
+            docker run -d --name mobile-api -p 80:3000 mobile-api
+          EOF
